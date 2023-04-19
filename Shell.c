@@ -8,6 +8,8 @@
 #include<fcntl.h>
 
 int main(){
+
+    
     char cwd[] = "/";
     while(1){
        

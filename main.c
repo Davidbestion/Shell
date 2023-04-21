@@ -8,7 +8,7 @@
 #include "executor.h"
 
 // This program reads user input from standard input and echoes it back to the console
- int main(int argc, char **argv) {
+int main(int argc, char **argv) {
     char *cmd; // Pointer to dynamically allocated memory to store user input
      // Repeatedly prompt the user for input until the user enters the "exit" command
     do {
@@ -103,16 +103,27 @@ char *read_cmd(void)
 
 int parse_and_execute(struct source_s *src)
 {
-    skip_white_spaces(src);    struct token_s *tok = tokenize(src);    if(tok == &eof_token)
+    // Takes out white spaces and separates the input in tokens.
+    skip_white_spaces(src);    
+    struct token_s *tok = tokenize(src);    
+    
+    if(tok == &eof_token)
     {
         return 0;
-    }    while(tok && tok != &eof_token)
+    }    
+    // Process the command in input.
+    while(tok && tok != &eof_token)
     {
-        struct node_s *cmd = parse_simple_command(tok);        if(!cmd)
+        struct node_s *cmd = parse_simple_command(tok);        
+        
+        if(!cmd)
         {
             break;
-        }        do_simple_command(cmd);
+        }        
+        do_simple_command(cmd);
         free_node_tree(cmd);
         tok = tokenize(src);
-    }    return 1;
+    }    
+    
+    return 1;
 }

@@ -120,7 +120,7 @@ struct token_s *tokenize(struct source_s *src)
                     endloop = 1;
                 }
                 break;
-             case '\n':
+            case '\n':
                 // If the current character is a newline, mark the end of the token
                 if(tok_bufindex > 0)
                 {
@@ -132,7 +132,12 @@ struct token_s *tokenize(struct source_s *src)
                 }
                 endloop = 1;
                 break;
-             default:
+            case '#':
+                // If the current character is a "#", mark the end of the token
+                unget_char(src);
+                endloop = 1;
+                break;
+            default:
                 // Add any other character to the token buffer
                 add_to_buf(nc);
                 break;

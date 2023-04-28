@@ -8,6 +8,7 @@
 #include "shell.h"
 #include "node.h"
 #include "executor.h"
+extern char **__environ;
  // Searches for the given file in the system's PATH directories and returns the
 // full path of the executable if found. Otherwise, returns NULL.
 char *search_path(char *file)
@@ -57,7 +58,7 @@ char *search_path(char *file)
             strcpy(p, path);
             return p;
         }
-        else    /* file not found */
+        else    //file not found 
         {
             p = p2;
             if(*p2 == ':')
@@ -69,7 +70,7 @@ char *search_path(char *file)
     errno = ENOENT;
     return NULL;
 }
- // Executes the given command with the specified arguments (argc, argv). If the
+// Executes the given command with the specified arguments (argc, argv). If the
 // command does not contain a '/', searches for the executable in the system's
 // PATH using the `search_path()` function.
 int do_exec_cmd(int argc, char **argv)
@@ -102,8 +103,8 @@ static inline void free_argv(int argc, char **argv)
         free(argv[argc]);
     }
 }
- // Processes a simple command represented by a node in an abstract syntax tree.
- 
+
+// Processes a simple command represented by a node in an abstract syntax tree. 
 int do_simple_command(struct node_s *node)
 {
     if(!node)
@@ -114,6 +115,11 @@ int do_simple_command(struct node_s *node)
     if(!child)
     {
         return 0;
+    }
+    if ((node->children <= 2) && (child->type = NODE_COMMAND) && (strcmp(child->val.str, "cd") == 0))
+    {
+        child = child->next_sibling;
+        return execute_cd(child->val.str);
     }
     int argc = 0;
     long max_args = 255; // Maximum number of arguments that can be passed to a command
@@ -171,5 +177,30 @@ int do_simple_command(struct node_s *node)
     int status = 0;
     waitpid(child_pid, &status, 0);
     free_argv(argc, argv);
+    return 1;
+}
+int execute_cd(char* directory) {
+    char path[1024];
+    if (directory == NULL) {
+        const char* home_dir = getenv("HOME");
+        if (home_dir == NULL) {
+            errno = ENOENT;
+            fprintf(stderr, "cd: HOME environment variable not set.\n");
+            return 0;
+        }
+        directory = (char*)home_dir;
+    }
+    if (chdir(directory) != 0) {
+        fprintf(stderr,"cd: %s: %s\n", directory, strerror(errno));
+        return 0;
+    }
+    if (getcwd(path, 1024) == NULL) {
+        fprintf(stderr, "cd: getcwd failed\n");
+        return 0;
+    }
+    if (setenv("PWD", path, 1) != 0) {
+        fprintf(stderr,"cd: setenv failed\n");
+        return 0;
+    }
     return 1;
 }

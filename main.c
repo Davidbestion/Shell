@@ -111,7 +111,7 @@ int parse_and_execute(struct source_s *src)
     {
         return 0;
     }    
-    // Process the command in input.
+    // Process the command input.
     while(tok && tok != &eof_token)
     {
         struct node_s *cmd = parse_simple_command(tok);        

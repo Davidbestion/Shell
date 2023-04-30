@@ -77,7 +77,7 @@ int do_exec_cmd(int argc, char **argv)
 {
     if(strchr(argv[0], '/'))
     {
-        execv(argv[0], argv);
+        execv(argv[0], argv);//Executes the command in argv[0] with 
     }
     else
     {
@@ -115,6 +115,10 @@ int do_simple_command(struct node_s *node)
     if(!child)
     {
         return 0;
+    }
+    if(find_pipe_command(node))//If it is a pipe command
+    {
+        return 1;//return 1 because it has been already processed
     }
     if ((node->children <= 2) && (child->type = NODE_COMMAND) && (strcmp(child->val.str, "cd") == 0))
     {
@@ -201,6 +205,76 @@ int execute_cd(char* directory) {
     if (setenv("PWD", path, 1) != 0) {
         fprintf(stderr,"cd: setenv failed\n");
         return 0;
+    }
+    return 1;
+}
+
+//Function that searches for the "|" command and executes it.
+int find_pipe_command(struct node_s *node)
+{
+    struct node_s *curchild = node->first_child;//current child
+    while(curchild->next_sibling){curchild = curchild->next_sibling;}//Sets curchild as the last child of node.
+    while(curchild->prev_sibling)//Searches by all the siblings
+    {
+        if(curchild->val.str == "|")//If it found the command
+        {
+            struct node_s *node2 = new_node(NODE_COMMAND);//Creates a second AST.
+            node2->first_child = curchild->next_sibling;
+
+            //Erase the conections between curchild and his siblings and vice versa.
+            node2->first_child->prev_sibling = NULL;
+            curchild->next_sibling = NULL;
+            curchild->prev_sibling->next_sibling = NULL;
+            curchild->prev_sibling = NULL;
+
+            return execute_pipe(node, node2);//Creates the pipe and executes the commands.
+        }
+        else//If not
+        {
+            curchild = curchild->prev_sibling;//Continue searching.
+        }
+    }
+    return 0;
+}
+int execute_pipe(struct node_s *node1, struct node_s *node2)
+{
+    int fd[2]; // array to hold file descriptors for pipe
+    if (pipe(fd) == -1) { // create pipe and check for errors
+        printf("pipe failed\n"); // print error message if pipe fails
+        return 0;
+    }
+    pid_t pid1 = fork(); // fork first child process
+    if (pid1 == -1) {
+        printf("fork failed\n"); // print error message if fork fails
+        return 0;
+    }
+    if (pid1 == 0) { // child process 1
+        dup2(fd[1], STDOUT_FILENO); // redirect output to write end of pipe
+        close(fd[0]); // close read end of pipe
+        close(fd[1]); // close write end of pipe
+        do_simple_command(node1);
+        //exit(1)
+    }
+    else { // parent process
+        pid_t pid2 = fork(); // fork second child process
+        if (pid2 == -1) {
+            printf("fork failed\n"); // print error message if fork fails
+            return 0;
+        }
+        if (pid2 == 0) { // child process 2
+            dup2(fd[0], STDIN_FILENO); // redirect input from read end of pipe
+            close(fd[0]); // close read end of pipe
+            close(fd[1]); // close write end of pipe
+            do_simple_command(node2);
+            printf("execvp failed\n"); // print error message if execvp fails
+            //exit(1);
+        }
+        else { // parent process
+            close(fd[0]); // close read end of pipe
+            close(fd[1]); // close write end of pipe
+            waitpid(pid1, NULL, 0); // wait for child process 1 to finish
+            waitpid(pid2, NULL, 0); // wait for child process 2 to finish
+        }
     }
     return 1;
 }

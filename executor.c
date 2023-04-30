@@ -120,6 +120,7 @@ int do_simple_command(struct node_s *node)
     {
         return 1;//return 1 because it has been already processed
     }
+    find_exit_command(node);
     if ((node->children <= 2) && (child->type = NODE_COMMAND) && (strcmp(child->val.str, "cd") == 0))
     {
         child = child->next_sibling;
@@ -264,6 +265,7 @@ int execute_pipe(struct node_s *node1, struct node_s *node2)
             return 0;
         }
         if (pid2 == 0) { // child process 2
+            waitpid(pid1, NULL, 0); // wait for child process 1 to finish
             dup2(fd[0], STDIN_FILENO); // redirect input from read end of pipe
             close(fd[0]); // close read end of pipe
             close(fd[1]); // close write end of pipe
@@ -279,4 +281,11 @@ int execute_pipe(struct node_s *node1, struct node_s *node2)
         }
     }
     return 1;
+}
+
+void find_exit_command(struct node_s *node)
+{
+    if(node->val.str == "exit") {
+        exit(0);
+    }        
 }

@@ -183,6 +183,8 @@ int do_simple_command(struct node_s *node)
     free_argv(argc, argv);
     return 1;
 }
+
+//Function that executes the "cd" commant.
 int execute_cd(char* directory) {
     char path[1024];
     if (directory == NULL) {

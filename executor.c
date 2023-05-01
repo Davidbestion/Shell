@@ -91,7 +91,7 @@ int do_exec_cmd(int argc, char **argv)
     }
     return 0;
 }
- // Frees the memory allocated for the argument list (argv).
+// Frees the memory allocated for the argument list (argv).
 static inline void free_argv(int argc, char **argv)
 {
     if(!argc)
@@ -116,12 +116,22 @@ int do_simple_command(struct node_s *node)
     {
         return 0;
     }
+    struct node_s *sibling = child->next_sibling;
+    char *dir;
+    if(!sibling){dir = NULL;}
+    else {dir = sibling->val.str;}
+    if(strcmp(child->val.str, "cd") == 0)
+    {
+        return execute_cd(dir);
+    }
+    free(sibling);
     if(find_pipe_command(node))//If it is a pipe command
     {
+        printf("SALIO DEL find_pipe_command");
         return 1;//return 1 because it has been already processed
     }
     find_exit_command(node);
-    if ((node->children <= 2) && (child->type = NODE_COMMAND) && (strcmp(child->val.str, "cd") == 0))
+    if ((node->children <= 2) && (child->type == NODE_COMMAND) && (strcmp(child->val.str, "cd") == 0))
     {
         child = child->next_sibling;
         return execute_cd(child->val.str);
@@ -185,11 +195,12 @@ int do_simple_command(struct node_s *node)
     return 1;
 }
 
-//Function that executes the "cd" commant.
+// Function that executes the "cd" commant.
 int execute_cd(char* directory) {
     char path[1024];
     if (directory == NULL) {
         const char* home_dir = getenv("HOME");
+        printf("LA DIRECCION DE HOME ES %s\n", home_dir);
         if (home_dir == NULL) {
             errno = ENOENT;
             fprintf(stderr, "cd: HOME environment variable not set.\n");
@@ -216,13 +227,16 @@ int execute_cd(char* directory) {
 int find_pipe_command(struct node_s *node)
 {
     struct node_s *curchild = node->first_child;//current child
-    while(curchild->next_sibling){curchild = curchild->next_sibling;}//Sets curchild as the last child of node.
+    while(curchild->next_sibling)
+    {
+        curchild = curchild->next_sibling;//Sets curchild as the last child of node.
+    }
     while(curchild->prev_sibling)//Searches by all the siblings
     {
-        if(curchild->val.str == "|")//If it found the command
+        if(strcmp(curchild->val.str, "|") == 0)//If it found the command
         {
             struct node_s *node2 = new_node(NODE_COMMAND);//Creates a second AST.
-            node2->first_child = curchild->next_sibling;
+            add_child_node(node2, curchild->next_sibling);
 
             //Erase the conections between curchild and his siblings and vice versa.
             node2->first_child->prev_sibling = NULL;
@@ -246,46 +260,32 @@ int execute_pipe(struct node_s *node1, struct node_s *node2)
         printf("pipe failed\n"); // print error message if pipe fails
         return 0;
     }
-    pid_t pid1 = fork(); // fork first child process
-    if (pid1 == -1) {
+    pid_t pid = fork(); // fork first child process
+    if (pid == -1) {
         printf("fork failed\n"); // print error message if fork fails
         return 0;
     }
-    if (pid1 == 0) { // child process 1
+    if (pid == 0) { // child process 1
         dup2(fd[1], STDOUT_FILENO); // redirect output to write end of pipe
-        close(fd[0]); // close read end of pipe
+        //close(fd[0]); // close read end of pipe
         close(fd[1]); // close write end of pipe
         do_simple_command(node1);
-        //exit(1)
     }
     else { // parent process
-        pid_t pid2 = fork(); // fork second child process
-        if (pid2 == -1) {
-            printf("fork failed\n"); // print error message if fork fails
-            return 0;
-        }
-        if (pid2 == 0) { // child process 2
-            waitpid(pid1, NULL, 0); // wait for child process 1 to finish
-            dup2(fd[0], STDIN_FILENO); // redirect input from read end of pipe
-            close(fd[0]); // close read end of pipe
-            close(fd[1]); // close write end of pipe
-            do_simple_command(node2);
-            printf("execvp failed\n"); // print error message if execvp fails
-            //exit(1);
-        }
-        else { // parent process
-            close(fd[0]); // close read end of pipe
-            close(fd[1]); // close write end of pipe
-            waitpid(pid1, NULL, 0); // wait for child process 1 to finish
-            waitpid(pid2, NULL, 0); // wait for child process 2 to finish
-        }
+        waitpid(pid, NULL, 0); // wait for child process 1 to finish
+        dup2(fd[0], STDIN_FILENO); // redirect input from read end of pipe
+        close(fd[0]); // close read end of pipe
+        //close(fd[1]); // close write end of pipe
+        do_simple_command(node2);
+        printf("execvp failed\n"); // print error message if execvp fails
     }
     return 1;
 }
 
+//Function that executes the "exit" command. It simply exits the process if findes the command.
 void find_exit_command(struct node_s *node)
 {
-    if(node->val.str == "exit") {
+    if( node->val.str != NULL && strcmp(node->val.str, "exit") == 0) {
         exit(0);
     }        
 }
